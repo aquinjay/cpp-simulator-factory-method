@@ -1,3 +1,3 @@
 # cpp-simulator-factory-method
 
-from here run `cmake -S . -B /build` then cd into build and run cmake. Executable will be in bin/
+From this working directory create a build directory and then run `cmake -S . -B build/` then cd into build and run cmake. Executable will be in bin/
