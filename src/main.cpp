@@ -9,34 +9,27 @@
 class MHSimulator {
  public:
   virtual ~MHSimulator() {}
-  virtual double proposer() = 0;
-  virtual void runner() = 0;
+  virtual double proposal_func() = 0;
+  virtual std::vector<double> runner() = 0;
   virtual void viewer() = 0;
-
-  const std::vector<double>& getSimOutput() const {
-    return sim_output;
-  }
-
- protected:
-  std::vector<double> sim_output;
-};
+  };
 
 class GenericMHSimulator : public MHSimulator {
  public:
-  GenericMHSimulator(int n, std::function<double(double)> target_density_func)
-    : N(n), target_density(target_density_func), gen(std::random_device {}()), current_x(uniform(gen)) {
-    sim_output.resize(N); // Resize the vector to N elements
-  }
+  GenericMHSimulator(int n, std::function<double(double)> target_density_func)  // Pass chain size and target density function
+    : N(n), target_density(target_density_func), gen(std::random_device {}()), current_x(uniform(gen)) {}
 
-  double proposer() override {
+  double proposal_func() override {
     return current_x + proposal_width * (uniform(gen) - 0.5);
   }
 
   // Sampling loop
-  void runner() override {
+  std::vector<double> runner() override {
+    std::vector<double> results;
+    results.reserve(N);
     for (int i = 0; i < N; ++i) {
       // Propose a new state
-      double proposal_x = proposer();
+      double proposal_x = proposal_func();
       double acceptance_ratio = target_density(proposal_x) / target_density(current_x);
 
       // Accept or reject the proposal
@@ -44,15 +37,11 @@ class GenericMHSimulator : public MHSimulator {
          current_x = proposal_x;
        }
 
-      sim_output.push_back(current_x);
+      results.push_back(current_x);
     }
+    return results;
   }
-
-  void viewer() override {
-    for (double value : getSimOutput()) {
-      std::cout << value << std::endl;
-    }
-  }
+}
 
  private:
   std::function<double(double)> target_density;
@@ -73,10 +62,9 @@ class MHCreator {
   virtual ~MHCreator() {}
   virtual std::unique_ptr<MHSimulator> createSimulator() const = 0;
 
-  void OperatorRunner() const {
-    std::unique_ptr<MHSimulator> FactoryMethods = this->createSimulator(); // overwritten by concreteCreator's simulator initiator
-    FactoryMethods->runner(); // runs the concrete product's runner
-    FactoryMethods->viewer();
+  std::vector<double> OperatorRunner() const {
+    std::unique_ptr<MHSimulator> simulator = this->createSimulator(); // overwritten by concreteCreator's simulator initiator
+    return simulator->runner(); // runs the concrete product's runner
   }
 
 protected:
@@ -94,7 +82,10 @@ public:
 };
 
 void ClientCode(const MHCreator& creator) {
-  creator.OperatorRunner(); // runs creator operatorRunner which runs the concreate creator's simulator.
+  std::vector<double> results = creator.OperatorRunner(); // runs creator operatorRunner which runs the concreate creator's simulator.
+  for (double value : results) {
+    std::cout << value << std::endl;
+  }
 }
 
 int main() {
