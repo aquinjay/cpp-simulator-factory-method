@@ -10,9 +10,8 @@ class MHSimulator {
  public:
   virtual ~MHSimulator() {}
   virtual double proposal_func() = 0;
-  virtual std::vector<double> runner() = 0; // tester
-  virtual void viewer() = 0;
-  };
+  virtual std::vector<double> runner() = 0;
+};
 
 class GenericMHSimulator : public MHSimulator {
  public:
@@ -41,7 +40,6 @@ class GenericMHSimulator : public MHSimulator {
     }
     return results;
   }
-}
 
  private:
   std::function<double(double)> target_density;
@@ -54,6 +52,51 @@ class GenericMHSimulator : public MHSimulator {
   std::mt19937 gen;
   std::uniform_real_distribution<> uniform{0, 1};
 };
+
+// Independent class 
+
+class IndependentMHSimulator : public MHSimulator {
+ public:
+  IndependentMHSimulator(int n, std::function<double(double)> target_density_func)  // Pass chain size and target density function
+    : N(n), target_density(target_density_func), gen(std::random_device {}()), current_x(uniform(gen)) {}
+
+  double proposal_func() override {
+    return proposal_width * (uniform(gen) - 0.5);
+  }
+
+  // Sampling loop
+  std::vector<double> runner() override {
+    std::vector<double> results;
+    results.reserve(N);
+    for (int i = 0; i < N; ++i) {
+      // Propose a new state
+      double proposal_x = proposal_func();
+      double acceptance_ratio = target_density(proposal_x) / target_density(current_x);
+
+      // Accept or reject the proposal
+      if (uniform(gen) < acceptance_ratio) {
+         current_x = proposal_x;
+       }
+
+      results.push_back(current_x);
+    }
+    return results;
+  }
+
+ private:
+  std::function<double(double)> target_density;
+  // MH parameters
+  int N; // Number of samples
+  double proposal_width = 0.5; // Width of the uniform proposal distribution
+
+  // Initial state
+  double current_x;
+  std::mt19937 gen;
+  std::uniform_real_distribution<> uniform{0, 1};
+
+};
+
+// Creator class logic
 
 class MHCreator {
  public:
@@ -88,10 +131,23 @@ void ClientCode(const MHCreator& creator) {
   }
 }
 
+class IndependentMHSimulatorCreator : public MHCreator {
+public:
+  IndependentMHSimulatorCreator(std::function<double(double)> target_density_func)
+    : MHCreator(target_density_func) {}
+
+  std::unique_ptr<MHSimulator> createSimulator() const override {
+    return std::make_unique<IndependentMHSimulator>(10000, target_density); // returning simulator
+  }
+};
+
 int main() {
   auto target_density =[](double x) {
     return std::pow(x, 2.6 - 1) * std::pow(1 - x, 6.3 - 1);
   };
-  GenericMHSimulatorCreator creator(target_density);
+  // GenericMHSimulatorCreator creator(target_density);
+  // ClientCode(creator);
+  IndependentMHSimulatorCreator creator(target_density);
   ClientCode(creator);
+
 }
