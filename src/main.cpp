@@ -10,7 +10,7 @@ class MHSimulator {
  public:
   virtual ~MHSimulator() {}
   virtual double proposal_func() = 0;
-  virtual std::vector<double> runner() = 0;
+  virtual std::vector<double> runner() = 0; // tester
   virtual void viewer() = 0;
   };
 
